@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>StarterFeed Example</title>
+
+<form id="login" hidden>
+  <input name="email" type="email" placeholder="Email" required>
+  <input name="password" type="password" placeholder="Password" required>
+  <button>Log in</button>
+</form>
+
+<form id="note" hidden>
+  <input name="body" placeholder="New creature" required>
+  <button>Submit</button>
+  <button type="button" id="logout">Log out</button>
+</form>
+<p id="out"></p>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  // Project URL and publishable key: dashboard → Settings → API Keys
+  const db = supabase.createClient(
+    "https://taxbsmhfqsnclqkpvcdn.supabase.co",
+    "sb_publishable_cmIHLWouyLroSAHO6Q9w_Q_al-Liid_"
+  );
+
+  const login = document.getElementById("login");
+  const note = document.getElementById("note");
+  const out = document.getElementById("out");
+  let clearTimer;
+
+  // Show whichever form matches the session; supabase-js keeps the session in localStorage.
+  db.auth.onAuthStateChange((_event, session) => {
+    login.hidden = !!session;
+    note.hidden = !session;
+  });
+
+  login.onsubmit = async (e) => {
+    e.preventDefault();
+    const { error } = await db.auth.signInWithPassword({
+      email: login.elements.email.value,
+      password: login.elements.password.value,
+    });
+    out.textContent = error ? error.message : "";
+  };
+
+  note.onsubmit = async (e) => {
+    e.preventDefault();
+    clearTimeout(clearTimer);
+    const { data, error } = await db
+      .from("marine_creatures")
+      .insert({ creature_name: note.elements.body.value })
+      .select("created_at")
+      .single();
+    if (error) {
+      out.style.color = "";
+      out.textContent = error.message;
+      return;
+    }
+    out.style.color = "green";
+    out.textContent = "✓ " + new Date(data.created_at).toLocaleTimeString();
+    note.reset();
+    clearTimer = setTimeout(() => (out.textContent = ""), 3000);
+  };
+
+  document.getElementById("logout").onclick = () => db.auth.signOut();
+</script>
